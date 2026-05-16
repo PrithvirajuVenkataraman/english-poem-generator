@@ -71,7 +71,7 @@ export default async function handler(request, response) {
     if (!ollamaResponse.ok) {
       const errorText = await ollamaResponse.text();
       return response.status(502).json({
-        error: `Ollama request failed: ${errorText}`,
+        error: `Ollama request failed with HTTP ${ollamaResponse.status}: ${errorText.slice(0, 500)}`,
       });
     }
 
@@ -84,7 +84,7 @@ export default async function handler(request, response) {
     });
   } catch (error) {
     return response.status(500).json({
-      error: error.message || "Something went wrong.",
+      error: `Server error: ${error.message || "Something went wrong."}`,
     });
   }
 }
