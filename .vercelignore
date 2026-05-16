@@ -8,3 +8,4 @@ app.py
 database.py
 prompts.py
 AGENTS.md
+api/generate.py
