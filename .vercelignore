@@ -9,4 +9,4 @@ database.py
 prompts.py
 AGENTS.md
 api/generate.py
-requirements.txt
+api/generate.js
