@@ -1,5 +1,6 @@
-const DEFAULT_MODEL = process.env.OLLAMA_MODEL || "llama3.2";
-const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || "").replace(/\/$/, "");
+const DEFAULT_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+const GROQ_API_KEY = process.env.GROQ_API || process.env.GROQ_API_KEY || "";
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 function buildPrompt(situation, emotion, style) {
   return `
@@ -42,9 +43,9 @@ export default async function handler(request, response) {
     return response.status(405).json({ error: "Method not allowed." });
   }
 
-  if (!OLLAMA_BASE_URL) {
+  if (!GROQ_API_KEY) {
     return response.status(500).json({
-      error: "OLLAMA_BASE_URL is not set in Vercel environment variables.",
+      error: "GROQ_API is not set in Vercel environment variables.",
     });
   }
 
@@ -57,29 +58,36 @@ export default async function handler(request, response) {
       });
     }
 
-    const ollamaResponse = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
+    const groqResponse = await fetch(GROQ_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "ngrok-skip-browser-warning": "true",
+        "Authorization": `Bearer ${GROQ_API_KEY}`,
       },
       body: JSON.stringify({
         model: DEFAULT_MODEL,
-        prompt: buildPrompt(situation, emotion, style),
-        stream: false,
-        format: "json",
+        messages: [
+          {
+            role: "user",
+            content: buildPrompt(situation, emotion, style),
+          },
+        ],
+        temperature: 0.85,
+        max_tokens: 900,
+        response_format: { type: "json_object" },
       }),
     });
 
-    if (!ollamaResponse.ok) {
-      const errorText = await ollamaResponse.text();
+    if (!groqResponse.ok) {
+      const errorText = await groqResponse.text();
       return response.status(502).json({
-        error: `Ollama request failed with HTTP ${ollamaResponse.status} ${ollamaResponse.statusText}: ${errorText.slice(0, 500)}`,
+        error: `Groq request failed with HTTP ${groqResponse.status} ${groqResponse.statusText}: ${errorText.slice(0, 500)}`,
       });
     }
 
-    const ollamaData = await ollamaResponse.json();
-    const poemData = parsePoemJson(ollamaData.response || "");
+    const groqData = await groqResponse.json();
+    const rawText = groqData.choices?.[0]?.message?.content || "";
+    const poemData = parsePoemJson(rawText);
 
     return response.status(200).json({
       title: poemData.title || "Untitled Poem",
