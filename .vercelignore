@@ -9,4 +9,6 @@ database.py
 prompts.py
 AGENTS.md
 api/index.py
-api/generate.js
+api/generate.py
+requirements.txt
+pyproject.toml
