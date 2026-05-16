@@ -4,3 +4,7 @@ poems.db
 .streamlit/
 .venv/
 venv/
+app.py
+database.py
+prompts.py
+AGENTS.md
