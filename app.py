@@ -300,8 +300,18 @@ def ask_ollama(prompt, model_name):
 def show_poem(poem_data):
     title = str(poem_data["title"])
     poem = html.escape(str(poem_data["poem"]))
+    copy_text = f"{title}\n\n{poem_data['poem']}"
 
-    st.header(title)
+    title_column, copy_column = st.columns([3, 1])
+    with title_column:
+        st.header(title)
+    with copy_column:
+        st.download_button(
+            "Copy / Save",
+            data=copy_text,
+            file_name=f"{title[:40] or 'poem'}.txt",
+            mime="text/plain",
+        )
 
     st.markdown(
         f"""
@@ -448,7 +458,7 @@ def history_page():
         st.rerun()
 
     for poem in poems:
-        with st.expander(f"{poem['title']} - {poem['created_at']}"):
+        with st.expander(poem["title"]):
             st.markdown(
                 f"""
                 <div class="meta-line">
