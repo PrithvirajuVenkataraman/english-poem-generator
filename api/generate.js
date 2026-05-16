@@ -59,7 +59,10 @@ export default async function handler(request, response) {
 
     const ollamaResponse = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
       body: JSON.stringify({
         model: DEFAULT_MODEL,
         prompt: buildPrompt(situation, emotion, style),
@@ -71,7 +74,7 @@ export default async function handler(request, response) {
     if (!ollamaResponse.ok) {
       const errorText = await ollamaResponse.text();
       return response.status(502).json({
-        error: `Ollama request failed with HTTP ${ollamaResponse.status}: ${errorText.slice(0, 500)}`,
+        error: `Ollama request failed with HTTP ${ollamaResponse.status} ${ollamaResponse.statusText}: ${errorText.slice(0, 500)}`,
       });
     }
 
