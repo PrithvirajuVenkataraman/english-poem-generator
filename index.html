@@ -197,8 +197,39 @@
       border: 1px solid var(--line);
       border-radius: 8px;
       background: var(--panel);
-      padding: 22px;
+      padding: 18px;
       margin-top: 18px;
+    }
+
+    .result-header,
+    .history-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .history-title {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      min-height: auto;
+      padding: 0;
+      text-align: left;
+      font-size: 1.1rem;
+      font-weight: 850;
+      width: auto;
+    }
+
+    .history-title:hover {
+      color: var(--gold);
+      transform: none;
+    }
+
+    .copy-button {
+      min-height: 36px;
+      white-space: nowrap;
     }
 
     .poem {
@@ -224,6 +255,10 @@
 
     .hidden {
       display: none;
+    }
+
+    .expanded {
+      display: block;
     }
 
     .error {
@@ -260,6 +295,15 @@
       }
 
       .history-actions button {
+        margin-top: 12px;
+      }
+
+      .result-header,
+      .history-title-row {
+        display: block;
+      }
+
+      .copy-button {
         margin-top: 12px;
       }
     }
@@ -397,7 +441,10 @@
     function renderPoem(poem) {
       return `
         <article class="result">
-          <h2>${escapeHtml(poem.title)}</h2>
+          <div class="result-header">
+            <h2>${escapeHtml(poem.title)}</h2>
+            <button class="secondary copy-button" type="button" data-copy-poem="${escapeHtml(poem.id)}">Copy Poem</button>
+          </div>
           <div class="meta">Emotion: ${escapeHtml(poem.emotion)} | Style: ${escapeHtml(poem.style)}</div>
           <div class="poem">${escapeHtml(poem.poem)}</div>
         </article>
@@ -411,12 +458,25 @@
 
       historyList.innerHTML = items.map((item) => `
         <article class="history-item">
-          <h2>${escapeHtml(item.title)}</h2>
-          <div class="meta">${escapeHtml(item.createdAt)} | Emotion: ${escapeHtml(item.emotion)} | Style: ${escapeHtml(item.style)}</div>
-          <div class="poem">${escapeHtml(item.poem)}</div>
-          <button class="secondary" type="button" data-delete-id="${escapeHtml(item.id)}">Delete This Poem</button>
+          <div class="history-title-row">
+            <button class="history-title" type="button" data-toggle-id="${escapeHtml(item.id)}">${escapeHtml(item.title)}</button>
+            <button class="secondary copy-button" type="button" data-copy-poem="${escapeHtml(item.id)}">Copy Poem</button>
+          </div>
+          <div class="history-detail hidden" id="history-detail-${escapeHtml(item.id)}">
+            <div class="meta">${escapeHtml(item.createdAt)} | Emotion: ${escapeHtml(item.emotion)} | Style: ${escapeHtml(item.style)}</div>
+            <div class="poem">${escapeHtml(item.poem)}</div>
+            <button class="secondary" type="button" data-delete-id="${escapeHtml(item.id)}">Delete This Poem</button>
+          </div>
         </article>
       `).join("");
+    }
+
+    async function copyPoemById(id) {
+      const poem = getHistory().find((item) => item.id === id);
+      if (!poem) return;
+
+      const text = `${poem.title}\n\n${poem.poem}`;
+      await navigator.clipboard.writeText(text);
     }
 
     function startLoading() {
@@ -450,6 +510,24 @@
     });
 
     historyList.addEventListener("click", (event) => {
+      const toggleButton = event.target.closest("[data-toggle-id]");
+      if (toggleButton) {
+        const id = toggleButton.getAttribute("data-toggle-id");
+        const detail = document.getElementById(`history-detail-${id}`);
+        if (detail) detail.classList.toggle("hidden");
+        return;
+      }
+
+      const copyButton = event.target.closest("[data-copy-poem]");
+      if (copyButton) {
+        copyPoemById(copyButton.getAttribute("data-copy-poem"));
+        copyButton.textContent = "Copied";
+        setTimeout(() => {
+          copyButton.textContent = "Copy Poem";
+        }, 1200);
+        return;
+      }
+
       const deleteButton = event.target.closest("[data-delete-id]");
       if (!deleteButton) return;
       const id = deleteButton.getAttribute("data-delete-id");
@@ -511,6 +589,16 @@
         stopLoading();
         generateButton.disabled = false;
       }
+    });
+
+    result.addEventListener("click", (event) => {
+      const copyButton = event.target.closest("[data-copy-poem]");
+      if (!copyButton) return;
+      copyPoemById(copyButton.getAttribute("data-copy-poem"));
+      copyButton.textContent = "Copied";
+      setTimeout(() => {
+        copyButton.textContent = "Copy Poem";
+      }, 1200);
     });
   </script>
 </body>
