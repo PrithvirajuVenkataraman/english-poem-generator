@@ -48,28 +48,17 @@ def send_json(handler, status_code, data):
     body = json.dumps(data).encode("utf-8")
     handler.send_response(status_code)
     handler.send_header("Content-Type", "application/json")
-    handler.send_header("Access-Control-Allow-Origin", "*")
-    handler.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
-    handler.send_header("Access-Control-Allow-Headers", "Content-Type")
     handler.end_headers()
     handler.wfile.write(body)
 
 
 class handler(BaseHTTPRequestHandler):
-    def do_OPTIONS(self):
-        send_json(self, 200, {"ok": True})
-
     def do_POST(self):
         if not OLLAMA_BASE_URL:
             send_json(
                 self,
                 500,
-                {
-                    "error": (
-                        "OLLAMA_BASE_URL is not set. Add a public Ollama endpoint "
-                        "as a Vercel environment variable."
-                    )
-                },
+                {"error": "OLLAMA_BASE_URL is not set in Vercel environment variables."},
             )
             return
 
@@ -86,12 +75,11 @@ class handler(BaseHTTPRequestHandler):
                 send_json(self, 400, {"error": "Please enter a situation or prompt."})
                 return
 
-            prompt = build_prompt(situation, emotion, style)
             response = requests.post(
                 f"{OLLAMA_BASE_URL}/api/generate",
                 json={
                     "model": DEFAULT_MODEL,
-                    "prompt": prompt,
+                    "prompt": build_prompt(situation, emotion, style),
                     "stream": False,
                     "format": "json",
                 },
@@ -116,3 +104,6 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, 502, {"error": "The model did not return valid JSON."})
         except Exception as error:
             send_json(self, 500, {"error": f"Something went wrong: {error}"})
+
+    def do_GET(self):
+        send_json(self, 200, {"ok": True})
