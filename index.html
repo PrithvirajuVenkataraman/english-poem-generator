@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>English Poem Generator</title>
+  <style>
+    :root {
+      --bg: #0b0c10;
+      --panel: #14161c;
+      --panel-2: #1d2028;
+      --line: #2a2d34;
+      --text: #f7f3ea;
+      --muted: #b8b3aa;
+      --gold: #d7b56d;
+      --gold-light: #efcb7e;
+      --danger: #e26d6d;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .page {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 32px 0 56px;
+    }
+
+    .top-action {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow {
+      color: var(--gold);
+      font-size: 0.78rem;
+      font-weight: 850;
+      letter-spacing: 0.14rem;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      font-size: clamp(2.1rem, 6vw, 4rem);
+      line-height: 1.04;
+      margin: 0;
+      letter-spacing: 0;
+    }
+
+    .hero-copy {
+      color: var(--muted);
+      max-width: 700px;
+      font-size: 1.05rem;
+      line-height: 1.7;
+      margin: 18px 0 30px;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 24px;
+      box-shadow: 0 20px 70px rgba(0, 0, 0, 0.25);
+    }
+
+    h2 {
+      margin: 0 0 20px;
+      font-size: 1.45rem;
+    }
+
+    label {
+      display: block;
+      font-weight: 750;
+      margin-bottom: 8px;
+    }
+
+    textarea,
+    select {
+      width: 100%;
+      border: 1px solid #30343f;
+      border-radius: 8px;
+      background: var(--panel-2);
+      color: var(--text);
+      font: inherit;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 190px;
+      resize: vertical;
+      padding: 16px;
+      line-height: 1.6;
+    }
+
+    select {
+      height: 52px;
+      padding: 0 14px;
+    }
+
+    textarea:focus,
+    select:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(215, 181, 109, 0.16);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 20px 0;
+    }
+
+    button {
+      border-radius: 8px;
+      min-height: 52px;
+      padding: 0 18px;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+    }
+
+    .primary {
+      width: 100%;
+      border: 1px solid var(--gold);
+      background: var(--gold);
+      color: #101010;
+      box-shadow: 0 10px 28px rgba(215, 181, 109, 0.18);
+    }
+
+    .secondary {
+      border: 1px solid #4b5160;
+      background: #181b22;
+      color: var(--text);
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    .primary:hover {
+      background: var(--gold-light);
+      border-color: var(--gold-light);
+    }
+
+    .secondary:hover {
+      border-color: var(--gold);
+      background: #20242d;
+    }
+
+    button:disabled {
+      opacity: 0.65;
+      cursor: wait;
+      transform: none;
+    }
+
+    .loader {
+      display: none;
+      border: 1px solid #3a3120;
+      border-radius: 8px;
+      padding: 14px;
+      background: #17130c;
+      color: #f3d390;
+      margin-top: 18px;
+    }
+
+    .bar {
+      height: 8px;
+      background: #2a2418;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+
+    .bar span {
+      display: block;
+      width: 12%;
+      height: 100%;
+      background: var(--gold);
+      border-radius: inherit;
+      transition: width 500ms ease;
+    }
+
+    .result,
+    .history-item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 22px;
+      margin-top: 22px;
+    }
+
+    .poem {
+      white-space: pre-wrap;
+      line-height: 1.85;
+      color: #f8f0df;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 0.92rem;
+      margin-bottom: 14px;
+    }
+
+    .history-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin: 18px 0;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .error {
+      border: 1px solid rgba(226, 109, 109, 0.55);
+      border-radius: 8px;
+      background: rgba(226, 109, 109, 0.12);
+      color: #ffd0d0;
+      padding: 14px;
+      margin-top: 16px;
+    }
+
+    @media (max-width: 760px) {
+      .page {
+        width: min(100% - 24px, 1180px);
+        padding-top: 22px;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .panel,
+      .result,
+      .history-item {
+        padding: 18px;
+      }
+
+      button {
+        width: 100%;
+      }
+
+      .history-actions {
+        display: block;
+      }
+
+      .history-actions button {
+        margin-top: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section id="createView">
+      <div class="top-action">
+        <button class="secondary" id="historyButton" type="button">View History</button>
+      </div>
+
+      <div class="eyebrow">Private local writing studio</div>
+      <h1>English Poem Generator</h1>
+      <p class="hero-copy">Turn a memory, conflict, scene, or feeling into a composed English poem with a clear emotional voice.</p>
+
+      <form class="panel" id="poemForm">
+        <h2>Compose</h2>
+
+        <label for="situation">Situation or Emotional Prompt</label>
+        <textarea id="situation" placeholder="Example: A person waits at a quiet bus stop on a rainy night, remembering a love they never confessed."></textarea>
+
+        <div class="grid">
+          <div>
+            <label for="emotion">Emotion</label>
+            <select id="emotion">
+              <option>Love</option>
+              <option>Longing</option>
+              <option>Heartbreak</option>
+              <option>Anger</option>
+              <option>Peace</option>
+              <option>Closure</option>
+              <option>Hope</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="style">Style</label>
+            <select id="style">
+              <option>Simple English</option>
+              <option>Modern Poetic</option>
+              <option>Classical Poetic</option>
+              <option>Dark Poetic</option>
+              <option>Cinematic</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="primary" id="generateButton" type="submit">Generate Poem</button>
+        <div class="loader" id="loader">
+          <div id="loaderText">Reading the emotional weather...</div>
+          <div class="bar"><span id="loaderBar"></span></div>
+        </div>
+        <div id="errorBox"></div>
+      </form>
+
+      <div id="result"></div>
+    </section>
+
+    <section id="historyView" class="hidden">
+      <div class="top-action">
+        <button class="secondary" id="backButton" type="button">Back to Generator</button>
+      </div>
+
+      <div class="eyebrow">Saved work</div>
+      <h1>Poem History</h1>
+      <p class="hero-copy">Review, revisit, or remove poems from previous sessions.</p>
+
+      <div class="history-actions">
+        <div id="historyCount"></div>
+        <button class="secondary" id="clearHistoryButton" type="button">Clear All History</button>
+      </div>
+
+      <div id="historyList"></div>
+    </section>
+  </main>
+
+  <script>
+    const historyButton = document.getElementById("historyButton");
+    const backButton = document.getElementById("backButton");
+    const createView = document.getElementById("createView");
+    const historyView = document.getElementById("historyView");
+    const poemForm = document.getElementById("poemForm");
+    const generateButton = document.getElementById("generateButton");
+    const loader = document.getElementById("loader");
+    const loaderText = document.getElementById("loaderText");
+    const loaderBar = document.getElementById("loaderBar");
+    const result = document.getElementById("result");
+    const errorBox = document.getElementById("errorBox");
+    const historyList = document.getElementById("historyList");
+    const historyCount = document.getElementById("historyCount");
+    const clearHistoryButton = document.getElementById("clearHistoryButton");
+    const storageKey = "english-poem-generator-history";
+
+    const loadingSteps = [
+      "Reading the emotional weather...",
+      "Choosing images with sharper edges...",
+      "Finding the first honest line...",
+      "Shaping the rhythm...",
+      "Polishing the final stanza..."
+    ];
+
+    let loadingTimer = null;
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function switchView(view) {
+      const showCreate = view === "create";
+      createView.classList.toggle("hidden", !showCreate);
+      historyView.classList.toggle("hidden", showCreate);
+      if (!showCreate) renderHistory();
+    }
+
+    function getHistory() {
+      return JSON.parse(localStorage.getItem(storageKey) || "[]");
+    }
+
+    function saveHistory(items) {
+      localStorage.setItem(storageKey, JSON.stringify(items));
+    }
+
+    function addPoemToHistory(poem) {
+      const items = getHistory();
+      items.unshift(poem);
+      saveHistory(items);
+    }
+
+    function renderPoem(poem) {
+      return `
+        <article class="result">
+          <h2>${escapeHtml(poem.title)}</h2>
+          <div class="meta">Emotion: ${escapeHtml(poem.emotion)} | Style: ${escapeHtml(poem.style)}</div>
+          <div class="poem">${escapeHtml(poem.poem)}</div>
+        </article>
+      `;
+    }
+
+    function renderHistory() {
+      const items = getHistory();
+      historyCount.textContent = items.length ? `${items.length} saved poem${items.length === 1 ? "" : "s"}` : "No saved poems yet.";
+      clearHistoryButton.disabled = items.length === 0;
+
+      historyList.innerHTML = items.map((item) => `
+        <article class="history-item">
+          <h2>${escapeHtml(item.title)}</h2>
+          <div class="meta">${escapeHtml(item.createdAt)} | Emotion: ${escapeHtml(item.emotion)} | Style: ${escapeHtml(item.style)}</div>
+          <div class="poem">${escapeHtml(item.poem)}</div>
+          <button class="secondary" type="button" data-delete-id="${escapeHtml(item.id)}">Delete This Poem</button>
+        </article>
+      `).join("");
+    }
+
+    function startLoading() {
+      let progress = 12;
+      let step = 0;
+      loader.style.display = "block";
+      loaderText.textContent = loadingSteps[0];
+      loaderBar.style.width = `${progress}%`;
+
+      loadingTimer = setInterval(() => {
+        step += 1;
+        progress = Math.min(progress + 4, 92);
+        loaderText.textContent = loadingSteps[step % loadingSteps.length];
+        loaderBar.style.width = `${progress}%`;
+      }, 900);
+    }
+
+    function stopLoading() {
+      clearInterval(loadingTimer);
+      loadingTimer = null;
+      loader.style.display = "none";
+      loaderBar.style.width = "0%";
+    }
+
+    historyButton.addEventListener("click", () => switchView("history"));
+    backButton.addEventListener("click", () => switchView("create"));
+
+    clearHistoryButton.addEventListener("click", () => {
+      saveHistory([]);
+      renderHistory();
+    });
+
+    historyList.addEventListener("click", (event) => {
+      const deleteButton = event.target.closest("[data-delete-id]");
+      if (!deleteButton) return;
+      const id = deleteButton.getAttribute("data-delete-id");
+      saveHistory(getHistory().filter((item) => item.id !== id));
+      renderHistory();
+    });
+
+    poemForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorBox.innerHTML = "";
+
+      const situation = document.getElementById("situation").value.trim();
+      const emotion = document.getElementById("emotion").value;
+      const style = document.getElementById("style").value;
+
+      if (!situation) {
+        errorBox.innerHTML = '<div class="error">Please enter a situation or emotional prompt.</div>';
+        return;
+      }
+
+      generateButton.disabled = true;
+      result.innerHTML = "";
+      startLoading();
+
+      try {
+        const response = await fetch("/api/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ situation, emotion, style })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Generation failed.");
+        }
+
+        const poem = {
+          id: crypto.randomUUID(),
+          title: data.title || "Untitled Poem",
+          poem: data.poem || "",
+          situation,
+          emotion,
+          style,
+          createdAt: new Date().toLocaleString()
+        };
+
+        addPoemToHistory(poem);
+        result.innerHTML = renderPoem(poem);
+      } catch (error) {
+        errorBox.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`;
+      } finally {
+        stopLoading();
+        generateButton.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
