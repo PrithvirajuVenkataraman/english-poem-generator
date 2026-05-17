@@ -148,6 +148,10 @@
       box-shadow: 0 10px 28px rgba(215, 181, 109, 0.18);
     }
 
+    .submit-button {
+      margin-top: 18px;
+    }
+
     .secondary {
       border: 1px solid #4b5160;
       background: #181b22;
@@ -241,11 +245,23 @@
       white-space: nowrap;
     }
 
+    .result-actions {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+
     .poem {
       white-space: pre-wrap;
       line-height: 1.85;
       font-size: 0.96rem;
       color: #f8f0df;
+    }
+
+    .poem-editor {
+      min-height: 260px;
+      white-space: pre-wrap;
     }
 
     .byline {
@@ -338,6 +354,10 @@
       .copy-button {
         margin-top: 12px;
       }
+
+      .result-actions {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -383,10 +403,32 @@
           </div>
         </div>
 
+        <div class="grid">
+          <div>
+            <label for="poemLength">Poem Length</label>
+            <select id="poemLength">
+              <option>Short</option>
+              <option selected>Medium</option>
+              <option>Long</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="tone">Tone</label>
+            <select id="tone">
+              <option>Soft</option>
+              <option>Dramatic</option>
+              <option>Hopeful</option>
+              <option>Melancholic</option>
+              <option>Romantic</option>
+            </select>
+          </div>
+        </div>
+
         <label for="authorName">Pen Name</label>
         <input id="authorName" maxlength="80" placeholder="Example: A. River" type="text">
 
-        <button class="primary" id="generateButton" type="submit">Generate Poem</button>
+        <button class="primary submit-button" id="generateButton" type="submit">Generate Poem</button>
         <div class="loader" id="loader">
           <div id="loaderText">Reading the emotional weather...</div>
           <div class="bar"><span id="loaderBar"></span></div>
@@ -441,6 +483,8 @@
     ];
 
     let loadingTimer = null;
+    let currentDraft = null;
+    let lastRequest = null;
 
     function escapeHtml(value) {
       return String(value)
@@ -472,7 +516,29 @@
       saveHistory(items);
     }
 
-    function renderPoem(poem) {
+    function findPoemById(id) {
+      if (currentDraft && currentDraft.id === id) return currentDraft;
+      return getHistory().find((item) => item.id === id);
+    }
+
+    function getFormData() {
+      return {
+        situation: document.getElementById("situation").value.trim(),
+        emotion: document.getElementById("emotion").value,
+        style: document.getElementById("style").value,
+        poemLength: document.getElementById("poemLength").value,
+        tone: document.getElementById("tone").value,
+        authorName: document.getElementById("authorName").value.trim() || "Anonymous"
+      };
+    }
+
+    function renderPoem(poem, options = {}) {
+      const editable = options.editable !== false;
+      const saved = Boolean(options.saved);
+      const poemBody = editable
+        ? `<textarea class="poem-editor" id="draftPoemText">${escapeHtml(poem.poem)}</textarea>`
+        : `<div class="poem">${escapeHtml(poem.poem)}</div>`;
+
       return `
         <article class="result">
           <div class="result-header">
@@ -480,8 +546,14 @@
             <button class="secondary copy-button" type="button" data-copy-poem="${escapeHtml(poem.id)}">Copy Poem</button>
           </div>
           <div class="byline">By ${escapeHtml(poem.authorName || "Anonymous")}</div>
-          <div class="meta">Emotion: ${escapeHtml(poem.emotion)} | Style: ${escapeHtml(poem.style)}</div>
-          <div class="poem">${escapeHtml(poem.poem)}</div>
+          <div class="meta">Emotion: ${escapeHtml(poem.emotion)} | Style: ${escapeHtml(poem.style)} | Length: ${escapeHtml(poem.poemLength || "Medium")} | Tone: ${escapeHtml(poem.tone || "Soft")}</div>
+          ${poemBody}
+          <div class="result-actions">
+            <button class="secondary" type="button" data-save-draft="${escapeHtml(poem.id)}" ${saved ? "disabled" : ""}>${saved ? "Saved" : "Save to History"}</button>
+            <button class="secondary" type="button" data-regenerate="true">Regenerate</button>
+            <button class="secondary" type="button" data-download-image="${escapeHtml(poem.id)}">Export Image</button>
+            <button class="secondary" type="button" data-share-poem="${escapeHtml(poem.id)}">Share Link</button>
+          </div>
         </article>
       `;
     }
@@ -499,10 +571,14 @@
           </div>
           <div class="history-detail hidden" id="history-detail-${escapeHtml(item.id)}">
             <div class="byline">By ${escapeHtml(item.authorName || "Anonymous")}</div>
-            <div class="meta">${escapeHtml(item.createdAt)} | Emotion: ${escapeHtml(item.emotion)} | Style: ${escapeHtml(item.style)}</div>
+            <div class="meta">${escapeHtml(item.createdAt)} | Emotion: ${escapeHtml(item.emotion)} | Style: ${escapeHtml(item.style)} | Length: ${escapeHtml(item.poemLength || "Medium")} | Tone: ${escapeHtml(item.tone || "Soft")}</div>
             <div class="prompt-label">Prompt</div>
             <div class="prompt-text">${escapeHtml(item.situation || "")}</div>
             <div class="poem">${escapeHtml(item.poem)}</div>
+            <div class="result-actions">
+              <button class="secondary" type="button" data-download-image="${escapeHtml(item.id)}">Export Image</button>
+              <button class="secondary" type="button" data-share-poem="${escapeHtml(item.id)}">Share Link</button>
+            </div>
             <button class="secondary" type="button" data-delete-id="${escapeHtml(item.id)}">Delete This Poem</button>
           </div>
         </article>
@@ -510,11 +586,151 @@
     }
 
     async function copyPoemById(id) {
-      const poem = getHistory().find((item) => item.id === id);
+      const poem = findPoemById(id);
       if (!poem) return;
+      syncDraftFromEditor();
 
       const text = `Prompt:\n${poem.situation || ""}\n\n${poem.title}\nBy ${poem.authorName || "Anonymous"}\n\n${poem.poem}`;
       await navigator.clipboard.writeText(text);
+    }
+
+    function encodeShareData(poem) {
+      const json = JSON.stringify(poem);
+      const bytes = new TextEncoder().encode(json);
+      let binary = "";
+      bytes.forEach((byte) => {
+        binary += String.fromCharCode(byte);
+      });
+      return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+    }
+
+    function decodeShareData(value) {
+      const normalized = value.replaceAll("-", "+").replaceAll("_", "/");
+      const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+      const binary = atob(padded);
+      const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+      return JSON.parse(new TextDecoder().decode(bytes));
+    }
+
+    function createShareLink(poem) {
+      syncDraftFromEditor();
+      const url = new URL(window.location.href);
+      url.hash = `poem=${encodeShareData(poem)}`;
+      return url.toString();
+    }
+
+    function syncDraftFromEditor() {
+      const editor = document.getElementById("draftPoemText");
+      if (currentDraft && editor) {
+        currentDraft.poem = editor.value.trim();
+      }
+    }
+
+    function saveDraftToHistory() {
+      if (!currentDraft) return;
+      syncDraftFromEditor();
+      const savedPoem = {
+        ...currentDraft,
+        createdAt: currentDraft.createdAt || new Date().toLocaleString()
+      };
+      addPoemToHistory(savedPoem);
+      currentDraft = savedPoem;
+      result.innerHTML = renderPoem(currentDraft, { editable: false, saved: true });
+    }
+
+    function wrapCanvasText(context, text, x, y, maxWidth, lineHeight) {
+      const lines = String(text || "").split("\n");
+      let currentY = y;
+
+      lines.forEach((line) => {
+        const words = line.split(" ");
+        let currentLine = "";
+
+        words.forEach((word) => {
+          const testLine = currentLine ? `${currentLine} ${word}` : word;
+          if (context.measureText(testLine).width > maxWidth && currentLine) {
+            context.fillText(currentLine, x, currentY);
+            currentLine = word;
+            currentY += lineHeight;
+          } else {
+            currentLine = testLine;
+          }
+        });
+
+        context.fillText(currentLine, x, currentY);
+        currentY += lineHeight;
+      });
+
+      return currentY;
+    }
+
+    function downloadPoemImage(id) {
+      const poem = findPoemById(id);
+      if (!poem) return;
+      syncDraftFromEditor();
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 1400;
+      canvas.height = 1800;
+      const context = canvas.getContext("2d");
+      context.fillStyle = "#0b0c10";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.fillStyle = "#14161c";
+      context.fillRect(90, 90, 1220, 1620);
+      context.strokeStyle = "#d7b56d";
+      context.lineWidth = 6;
+      context.strokeRect(110, 110, 1180, 1580);
+
+      context.fillStyle = "#f7f3ea";
+      context.font = "700 64px Georgia, serif";
+      let y = wrapCanvasText(context, poem.title, 170, 230, 1060, 76);
+
+      context.fillStyle = "#d7b56d";
+      context.font = "500 34px Georgia, serif";
+      context.fillText(`By ${poem.authorName || "Anonymous"}`, 170, y + 28);
+      y += 92;
+
+      context.fillStyle = "#b8b3aa";
+      context.font = "28px Arial, sans-serif";
+      context.fillText(`${poem.emotion} | ${poem.style} | ${poem.poemLength || "Medium"} | ${poem.tone || "Soft"}`, 170, y);
+      y += 76;
+
+      context.fillStyle = "#f8f0df";
+      context.font = "38px Georgia, serif";
+      wrapCanvasText(context, poem.poem, 170, y, 1060, 58);
+
+      const link = document.createElement("a");
+      link.download = `${(poem.title || "poem").slice(0, 40).replace(/[^a-z0-9]+/gi, "-")}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    }
+
+    async function generatePoem(requestData) {
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestData)
+      });
+
+      let data = {};
+      const responseText = await response.text();
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        data = { error: responseText };
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || `Generation failed with HTTP ${response.status}.`);
+      }
+
+      return {
+        id: crypto.randomUUID(),
+        title: data.title || "Untitled Poem",
+        poem: data.poem || "",
+        ...requestData,
+        createdAt: new Date().toLocaleString()
+      };
     }
 
     function startLoading() {
@@ -566,6 +782,24 @@
         return;
       }
 
+      const downloadButton = event.target.closest("[data-download-image]");
+      if (downloadButton) {
+        downloadPoemImage(downloadButton.getAttribute("data-download-image"));
+        return;
+      }
+
+      const shareButton = event.target.closest("[data-share-poem]");
+      if (shareButton) {
+        const poem = findPoemById(shareButton.getAttribute("data-share-poem"));
+        if (!poem) return;
+        navigator.clipboard.writeText(createShareLink(poem));
+        shareButton.textContent = "Link Copied";
+        setTimeout(() => {
+          shareButton.textContent = "Share Link";
+        }, 1200);
+        return;
+      }
+
       const deleteButton = event.target.closest("[data-delete-id]");
       if (!deleteButton) return;
       const id = deleteButton.getAttribute("data-delete-id");
@@ -577,52 +811,21 @@
       event.preventDefault();
       errorBox.innerHTML = "";
 
-      const situation = document.getElementById("situation").value.trim();
-      const emotion = document.getElementById("emotion").value;
-      const style = document.getElementById("style").value;
-      const authorName = document.getElementById("authorName").value.trim() || "Anonymous";
+      const requestData = getFormData();
 
-      if (!situation) {
+      if (!requestData.situation) {
         errorBox.innerHTML = '<div class="error">Please enter a situation or emotional prompt.</div>';
         return;
       }
 
+      lastRequest = requestData;
       generateButton.disabled = true;
       result.innerHTML = "";
       startLoading();
 
       try {
-        const response = await fetch("/api/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ situation, emotion, style, authorName })
-        });
-
-        let data = {};
-        const responseText = await response.text();
-        try {
-          data = responseText ? JSON.parse(responseText) : {};
-        } catch {
-          data = { error: responseText };
-        }
-
-        if (!response.ok) {
-          throw new Error(data.error || `Generation failed with HTTP ${response.status}.`);
-        }
-
-        const poem = {
-          id: crypto.randomUUID(),
-          title: data.title || "Untitled Poem",
-          poem: data.poem || "",
-          situation,
-          emotion,
-          style,
-          authorName,
-          createdAt: new Date().toLocaleString()
-        };
-
-        addPoemToHistory(poem);
-        result.innerHTML = renderPoem(poem);
+        currentDraft = await generatePoem(requestData);
+        result.innerHTML = renderPoem(currentDraft);
       } catch (error) {
         errorBox.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`;
       } finally {
@@ -633,13 +836,77 @@
 
     result.addEventListener("click", (event) => {
       const copyButton = event.target.closest("[data-copy-poem]");
-      if (!copyButton) return;
-      copyPoemById(copyButton.getAttribute("data-copy-poem"));
-      copyButton.textContent = "Copied";
-      setTimeout(() => {
-        copyButton.textContent = "Copy Poem";
-      }, 1200);
+      if (copyButton) {
+        copyPoemById(copyButton.getAttribute("data-copy-poem"));
+        copyButton.textContent = "Copied";
+        setTimeout(() => {
+          copyButton.textContent = "Copy Poem";
+        }, 1200);
+        return;
+      }
+
+      const saveButton = event.target.closest("[data-save-draft]");
+      if (saveButton) {
+        saveDraftToHistory();
+        return;
+      }
+
+      const regenerateButton = event.target.closest("[data-regenerate]");
+      if (regenerateButton && lastRequest) {
+        errorBox.innerHTML = "";
+        result.innerHTML = "";
+        startLoading();
+
+        generatePoem(lastRequest)
+          .then((poem) => {
+            currentDraft = poem;
+            result.innerHTML = renderPoem(currentDraft);
+          })
+          .catch((error) => {
+            errorBox.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`;
+          })
+          .finally(() => stopLoading());
+        return;
+      }
+
+      const downloadButton = event.target.closest("[data-download-image]");
+      if (downloadButton) {
+        downloadPoemImage(downloadButton.getAttribute("data-download-image"));
+        return;
+      }
+
+      const shareButton = event.target.closest("[data-share-poem]");
+      if (shareButton) {
+        const poem = findPoemById(shareButton.getAttribute("data-share-poem"));
+        if (!poem) return;
+        navigator.clipboard.writeText(createShareLink(poem));
+        shareButton.textContent = "Link Copied";
+        setTimeout(() => {
+          shareButton.textContent = "Share Link";
+        }, 1200);
+      }
     });
+
+    function loadSharedPoem() {
+      if (!window.location.hash.startsWith("#poem=")) return;
+
+      try {
+        currentDraft = decodeShareData(window.location.hash.slice(6));
+        lastRequest = {
+          situation: currentDraft.situation || "",
+          emotion: currentDraft.emotion || "Love",
+          style: currentDraft.style || "Simple English",
+          poemLength: currentDraft.poemLength || "Medium",
+          tone: currentDraft.tone || "Soft",
+          authorName: currentDraft.authorName || "Anonymous"
+        };
+        result.innerHTML = renderPoem(currentDraft);
+      } catch {
+        errorBox.innerHTML = '<div class="error">This shared poem link could not be opened.</div>';
+      }
+    }
+
+    loadSharedPoem();
   </script>
 </body>
 </html>
