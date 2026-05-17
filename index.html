@@ -86,6 +86,7 @@
       font-size: 0.88rem;
     }
 
+    input,
     textarea,
     select {
       width: 100%;
@@ -104,12 +105,18 @@
       line-height: 1.5;
     }
 
+    input {
+      height: 44px;
+      padding: 0 12px;
+    }
+
     select {
       height: 44px;
       padding: 0 12px;
     }
 
     textarea:focus,
+    input:focus,
     select:focus {
       border-color: var(--gold);
       box-shadow: 0 0 0 3px rgba(215, 181, 109, 0.16);
@@ -241,6 +248,13 @@
       color: #f8f0df;
     }
 
+    .byline {
+      color: var(--gold);
+      font-size: 0.94rem;
+      font-weight: 750;
+      margin: 8px 0 14px;
+    }
+
     .prompt-label {
       color: var(--muted);
       font-size: 0.82rem;
@@ -369,6 +383,9 @@
           </div>
         </div>
 
+        <label for="authorName">Pen Name</label>
+        <input id="authorName" maxlength="80" placeholder="Example: A. River" type="text">
+
         <button class="primary" id="generateButton" type="submit">Generate Poem</button>
         <div class="loader" id="loader">
           <div id="loaderText">Reading the emotional weather...</div>
@@ -462,6 +479,7 @@
             <h2>${escapeHtml(poem.title)}</h2>
             <button class="secondary copy-button" type="button" data-copy-poem="${escapeHtml(poem.id)}">Copy Poem</button>
           </div>
+          <div class="byline">By ${escapeHtml(poem.authorName || "Anonymous")}</div>
           <div class="meta">Emotion: ${escapeHtml(poem.emotion)} | Style: ${escapeHtml(poem.style)}</div>
           <div class="poem">${escapeHtml(poem.poem)}</div>
         </article>
@@ -480,6 +498,7 @@
             <button class="secondary copy-button" type="button" data-copy-poem="${escapeHtml(item.id)}">Copy Poem</button>
           </div>
           <div class="history-detail hidden" id="history-detail-${escapeHtml(item.id)}">
+            <div class="byline">By ${escapeHtml(item.authorName || "Anonymous")}</div>
             <div class="meta">${escapeHtml(item.createdAt)} | Emotion: ${escapeHtml(item.emotion)} | Style: ${escapeHtml(item.style)}</div>
             <div class="prompt-label">Prompt</div>
             <div class="prompt-text">${escapeHtml(item.situation || "")}</div>
@@ -494,7 +513,7 @@
       const poem = getHistory().find((item) => item.id === id);
       if (!poem) return;
 
-      const text = `Prompt:\n${poem.situation || ""}\n\n${poem.title}\n\n${poem.poem}`;
+      const text = `Prompt:\n${poem.situation || ""}\n\n${poem.title}\nBy ${poem.authorName || "Anonymous"}\n\n${poem.poem}`;
       await navigator.clipboard.writeText(text);
     }
 
@@ -561,6 +580,7 @@
       const situation = document.getElementById("situation").value.trim();
       const emotion = document.getElementById("emotion").value;
       const style = document.getElementById("style").value;
+      const authorName = document.getElementById("authorName").value.trim() || "Anonymous";
 
       if (!situation) {
         errorBox.innerHTML = '<div class="error">Please enter a situation or emotional prompt.</div>';
@@ -575,7 +595,7 @@
         const response = await fetch("/api/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ situation, emotion, style })
+          body: JSON.stringify({ situation, emotion, style, authorName })
         });
 
         let data = {};
@@ -597,6 +617,7 @@
           situation,
           emotion,
           style,
+          authorName,
           createdAt: new Date().toLocaleString()
         };
 
