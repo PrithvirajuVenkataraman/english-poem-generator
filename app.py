@@ -61,6 +61,7 @@ def apply_styles():
             font-weight: 850;
             letter-spacing: 0;
             margin: 0;
+            text-align: center;
         }
 
         .hero-copy {
@@ -68,7 +69,8 @@ def apply_styles():
             max-width: 620px;
             font-size: 0.95rem;
             line-height: 1.6;
-            margin: 0.8rem 0 1.2rem 0;
+            margin: 0.8rem auto 1.2rem auto;
+            text-align: center;
         }
 
         .editor-panel {
@@ -109,6 +111,13 @@ def apply_styles():
             line-height: 1.8;
             font-size: 0.96rem;
             color: #f8f0df;
+        }
+
+        .byline {
+            color: #d7b56d;
+            font-size: 0.94rem;
+            font-weight: 750;
+            margin: 0.2rem 0 0.8rem 0;
         }
 
         .meta-line {
@@ -297,10 +306,21 @@ def ask_ollama(prompt, model_name):
         return repair_json_with_ollama(raw_text, model_name)
 
 
+def get_poem_value(poem_data, key, default=""):
+    """Read from a generated dict or a SQLite Row."""
+    try:
+        value = poem_data[key]
+    except (KeyError, IndexError):
+        value = default
+
+    return value if value not in (None, "") else default
+
+
 def show_poem(poem_data):
     title = str(poem_data["title"])
     poem = html.escape(str(poem_data["poem"]))
-    copy_text = f"{title}\n\n{poem_data['poem']}"
+    author_name = str(get_poem_value(poem_data, "author_name", "Anonymous"))
+    copy_text = f"{title}\nBy {author_name}\n\n{poem_data['poem']}"
 
     title_column, copy_column = st.columns([3, 1])
     with title_column:
@@ -312,6 +332,11 @@ def show_poem(poem_data):
             file_name=f"{title[:40] or 'poem'}.txt",
             mime="text/plain",
         )
+
+    st.markdown(
+        f'<div class="byline">By {html.escape(author_name)}</div>',
+        unsafe_allow_html=True,
+    )
 
     st.markdown(
         f"""
@@ -368,8 +393,7 @@ def generator_page():
 
     st.markdown(
         """
-        <div class="topline">Private local writing studio</div>
-        <h1 class="hero-title">English Poem Generator</h1>
+        <h1 class="hero-title">Poem Generator</h1>
         <p class="hero-copy">
             Turn a memory, conflict, scene, or feeling into a composed English poem with a clear emotional voice.
         </p>
@@ -383,6 +407,10 @@ def generator_page():
             "Situation or Emotional Prompt",
             placeholder="Example: A person waits at a quiet bus stop on a rainy night, remembering a love they never confessed.",
             height=180,
+        )
+        author_name = st.text_input(
+            "Pen Name",
+            placeholder="Example: A. River",
         )
 
         control_left, control_right = st.columns(2)
@@ -400,6 +428,7 @@ def generator_page():
                 situation,
                 emotion,
                 style,
+                author_name.strip() or "Anonymous",
             )
 
             try:
@@ -418,6 +447,7 @@ def generator_page():
                 return
 
             poem_data["situation"] = situation
+            poem_data["author_name"] = author_name.strip() or "Anonymous"
             poem_data["output_language"] = "English"
             poem_data["emotion"] = emotion
             poem_data["style"] = style
@@ -462,7 +492,7 @@ def history_page():
             st.markdown(
                 f"""
                 <div class="meta-line">
-                    Emotion: {poem['emotion']} | Style: {poem['style']}
+                    By {poem['author_name']} | Emotion: {poem['emotion']} | Style: {poem['style']}
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -483,8 +513,8 @@ def history_page():
 
 def main():
     st.set_page_config(
-        page_title="English Poem Generator",
-        page_icon="EP",
+        page_title="Poem Generator",
+        page_icon="PG",
         layout="wide",
     )
 
