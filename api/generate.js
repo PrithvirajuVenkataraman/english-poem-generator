@@ -2,7 +2,7 @@ const DEFAULT_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 const GROQ_API_KEY = process.env.GROQ_API || process.env.GROQ_API_KEY || "";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-function buildPrompt(situation, emotion, style, authorName) {
+function buildPrompt(situation, emotion, style, authorName, poemLength, tone) {
   return `
 You are Poem Generator.
 
@@ -11,9 +11,13 @@ ${situation}
 
 Emotion: ${emotion}
 Style: ${style}
+Length: ${poemLength}
+Tone: ${tone}
 Author/pen name: ${authorName}
 Language instruction: Write in clear, natural English.
 Creative instruction: Make the poem vivid, emotionally specific, and memorable. Avoid generic lines.
+Length instruction: Follow the selected length. Short means 6-8 lines, Medium means 10-14 lines, and Long means 18-24 lines.
+Tone instruction: Let the selected tone guide the mood without naming it directly.
 Ending instruction: End the poem with a complete final line and proper punctuation. Do not end abruptly.
 Byline instruction: Do not include the author/pen name inside the poem text. The app will show it separately.
 
@@ -57,6 +61,8 @@ export default async function handler(request, response) {
       situation = "",
       emotion = "Love",
       style = "Simple English",
+      poemLength = "Medium",
+      tone = "Soft",
       authorName = "Anonymous",
     } = request.body || {};
 
@@ -77,11 +83,11 @@ export default async function handler(request, response) {
         messages: [
           {
             role: "user",
-            content: buildPrompt(situation, emotion, style, authorName),
+            content: buildPrompt(situation, emotion, style, authorName, poemLength, tone),
           },
         ],
         temperature: 0.85,
-        max_tokens: 900,
+        max_tokens: poemLength === "Long" ? 1300 : poemLength === "Short" ? 650 : 900,
         response_format: { type: "json_object" },
       }),
     });
