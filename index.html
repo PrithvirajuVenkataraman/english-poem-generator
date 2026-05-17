@@ -241,6 +241,22 @@
       color: #f8f0df;
     }
 
+    .prompt-label {
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 800;
+      margin: 14px 0 6px;
+      text-transform: uppercase;
+    }
+
+    .prompt-text {
+      border-left: 3px solid var(--gold);
+      color: var(--text);
+      line-height: 1.55;
+      margin-bottom: 14px;
+      padding-left: 12px;
+    }
+
     .meta {
       color: var(--muted);
       font-size: 0.92rem;
@@ -465,6 +481,8 @@
           </div>
           <div class="history-detail hidden" id="history-detail-${escapeHtml(item.id)}">
             <div class="meta">${escapeHtml(item.createdAt)} | Emotion: ${escapeHtml(item.emotion)} | Style: ${escapeHtml(item.style)}</div>
+            <div class="prompt-label">Prompt</div>
+            <div class="prompt-text">${escapeHtml(item.situation || "")}</div>
             <div class="poem">${escapeHtml(item.poem)}</div>
             <button class="secondary" type="button" data-delete-id="${escapeHtml(item.id)}">Delete This Poem</button>
           </div>
@@ -476,7 +494,7 @@
       const poem = getHistory().find((item) => item.id === id);
       if (!poem) return;
 
-      const text = `${poem.title}\n\n${poem.poem}`;
+      const text = `Prompt:\n${poem.situation || ""}\n\n${poem.title}\n\n${poem.poem}`;
       await navigator.clipboard.writeText(text);
     }
 
