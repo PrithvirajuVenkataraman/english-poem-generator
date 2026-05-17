@@ -1,14 +1,1 @@
-__pycache__/
-*.pyc
-poems.db
-.streamlit/
-.venv/
-venv/
-app.py
-database.py
-prompts.py
 AGENTS.md
-api/index.py
-api/generate.py
-requirements.txt
-pyproject.toml
