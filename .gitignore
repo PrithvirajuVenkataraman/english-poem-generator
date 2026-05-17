@@ -1,7 +1,2 @@
-__pycache__/
-*.pyc
-poems.db
-.venv/
-venv/
 .env
 .vercel/
