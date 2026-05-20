@@ -133,9 +133,17 @@
 
     .prompt-button {
       min-height: 36px;
-      padding: 0 12px;
+      width: 40px;
+      padding: 0;
       font-size: 0.84rem;
       white-space: nowrap;
+    }
+
+    .prompt-button svg {
+      display: block;
+      height: 18px;
+      margin: 0 auto;
+      width: 18px;
     }
 
     .prompt-button.is-listening {
@@ -430,9 +438,15 @@
           <label for="situation">Situation or Emotional Prompt</label>
           <textarea id="situation" placeholder="Example: A person waits at a quiet bus stop on a rainy night, remembering a love they never confessed."></textarea>
           <div class="prompt-toolbar">
-            <div class="prompt-status" id="voiceStatus">Type your prompt, or use voice-to-text.</div>
+            <div class="prompt-status" id="voiceStatus">Type your prompt, or use voice input.</div>
             <div class="prompt-buttons">
-              <button class="secondary prompt-button" id="voiceButton" type="button">Start VTT</button>
+              <button class="secondary prompt-button" id="voiceButton" type="button" aria-label="Start voice input" title="Voice input">
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                  <path d="M12 19v3"></path>
+                </svg>
+              </button>
               <button class="secondary prompt-button" id="clearPromptButton" type="button">Clear Prompt</button>
             </div>
           </div>
@@ -592,9 +606,10 @@
     }
 
     function updateVoiceControls(message) {
-      voiceButton.textContent = isListening ? "Stop VTT" : "Start VTT";
+      voiceButton.setAttribute("aria-label", isListening ? "Stop voice input" : "Start voice input");
+      voiceButton.title = isListening ? "Stop voice input" : "Voice input";
       voiceButton.classList.toggle("is-listening", isListening);
-      voiceStatus.textContent = message || (isListening ? "Listening. Speak naturally and pause when finished." : "Type your prompt, or use voice-to-text.");
+      voiceStatus.textContent = message || (isListening ? "Listening. Speak naturally and pause when finished." : "Type your prompt, or use voice input.");
     }
 
     function appendPromptText(text) {
@@ -609,7 +624,7 @@
     function setupVoiceRecognition() {
       if (!SpeechRecognition) {
         voiceButton.disabled = true;
-        voiceStatus.textContent = "Voice-to-text is not supported in this browser.";
+        voiceStatus.textContent = "Voice input is not supported in this browser.";
         return;
       }
 
@@ -639,13 +654,13 @@
 
       voiceRecognition.addEventListener("end", () => {
         isListening = false;
-        updateVoiceControls(voiceStopMessage || "Voice-to-text stopped. You can edit the prompt before generating.");
+        updateVoiceControls(voiceStopMessage || "Voice input stopped. You can edit the prompt before generating.");
         voiceStopMessage = "";
       });
 
       voiceRecognition.addEventListener("error", (event) => {
         isListening = false;
-        voiceStopMessage = `Voice-to-text stopped: ${event.error || "microphone access was unavailable"}.`;
+        voiceStopMessage = `Voice input stopped: ${event.error || "microphone access was unavailable"}.`;
         updateVoiceControls(voiceStopMessage);
       });
     }
@@ -654,7 +669,7 @@
       if (!voiceRecognition) return;
 
       if (isListening) {
-        voiceStopMessage = "Voice-to-text stopped. You can edit the prompt before generating.";
+        voiceStopMessage = "Voice input stopped. You can edit the prompt before generating.";
         voiceRecognition.stop();
         return;
       }
@@ -666,7 +681,7 @@
         voiceRecognition.start();
       } catch (error) {
         isListening = false;
-        updateVoiceControls("Voice-to-text could not start. Please try again.");
+        updateVoiceControls("Voice input could not start. Please try again.");
       }
     }
 
@@ -911,12 +926,12 @@
     voiceButton.addEventListener("click", toggleVoiceRecognition);
     clearPromptButton.addEventListener("click", () => {
       if (isListening && voiceRecognition) {
-        voiceStopMessage = "Prompt cleared. Type a new prompt, or start voice-to-text.";
+        voiceStopMessage = "Prompt cleared. Type a new prompt, or start voice input.";
         voiceRecognition.stop();
       }
       situationInput.value = "";
       situationInput.focus();
-      updateVoiceControls("Prompt cleared. Type a new prompt, or start voice-to-text.");
+      updateVoiceControls("Prompt cleared. Type a new prompt, or start voice input.");
     });
 
     clearHistoryButton.addEventListener("click", () => {
