@@ -131,7 +131,7 @@
       justify-content: flex-end;
     }
 
-    .prompt-button {
+    .voice-button {
       min-height: 36px;
       width: 40px;
       padding: 0;
@@ -139,17 +139,25 @@
       white-space: nowrap;
     }
 
-    .prompt-button svg {
+    .voice-button svg {
       display: block;
       height: 18px;
       margin: 0 auto;
       width: 18px;
     }
 
-    .prompt-button.is-listening {
+    .voice-button.is-listening {
       border-color: var(--gold);
       background: #2a2418;
       color: var(--gold-light);
+    }
+
+    .clear-prompt-button {
+      min-height: 36px;
+      padding: 0 12px;
+      font-size: 0.84rem;
+      white-space: nowrap;
+      width: auto;
     }
 
     input {
@@ -402,8 +410,10 @@
         justify-content: stretch;
       }
 
-      .prompt-button {
+      .voice-button,
+      .clear-prompt-button {
         flex: 1 1 120px;
+        width: auto;
       }
 
       .result-header,
@@ -440,14 +450,14 @@
           <div class="prompt-toolbar">
             <div class="prompt-status" id="voiceStatus">Type your prompt, or use voice input.</div>
             <div class="prompt-buttons">
-              <button class="secondary prompt-button" id="voiceButton" type="button" aria-label="Start voice input" title="Voice input">
+              <button class="secondary voice-button" id="voiceButton" type="button" aria-label="Start voice input" title="Voice input">
                 <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
                   <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
                   <path d="M12 19v3"></path>
                 </svg>
               </button>
-              <button class="secondary prompt-button" id="clearPromptButton" type="button">Clear Prompt</button>
+              <button class="secondary clear-prompt-button" id="clearPromptButton" type="button">Clear Prompt</button>
             </div>
           </div>
         </div>
