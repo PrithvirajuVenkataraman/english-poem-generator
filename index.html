@@ -105,6 +105,45 @@
       line-height: 1.5;
     }
 
+    .prompt-area {
+      position: relative;
+    }
+
+    .prompt-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .prompt-status {
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.4;
+      min-height: 20px;
+    }
+
+    .prompt-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .prompt-button {
+      min-height: 36px;
+      padding: 0 12px;
+      font-size: 0.84rem;
+      white-space: nowrap;
+    }
+
+    .prompt-button.is-listening {
+      border-color: var(--gold);
+      background: #2a2418;
+      color: var(--gold-light);
+    }
+
     input {
       height: 44px;
       padding: 0 12px;
@@ -346,6 +385,19 @@
         margin-top: 12px;
       }
 
+      .prompt-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .prompt-buttons {
+        justify-content: stretch;
+      }
+
+      .prompt-button {
+        flex: 1 1 120px;
+      }
+
       .result-header,
       .history-title-row {
         display: block;
@@ -374,8 +426,17 @@
       <form class="panel" id="poemForm">
         <h2>Compose</h2>
 
-        <label for="situation">Situation or Emotional Prompt</label>
-        <textarea id="situation" placeholder="Example: A person waits at a quiet bus stop on a rainy night, remembering a love they never confessed."></textarea>
+        <div class="prompt-area">
+          <label for="situation">Situation or Emotional Prompt</label>
+          <textarea id="situation" placeholder="Example: A person waits at a quiet bus stop on a rainy night, remembering a love they never confessed."></textarea>
+          <div class="prompt-toolbar">
+            <div class="prompt-status" id="voiceStatus">Type your prompt, or use voice-to-text.</div>
+            <div class="prompt-buttons">
+              <button class="secondary prompt-button" id="voiceButton" type="button">Start VTT</button>
+              <button class="secondary prompt-button" id="clearPromptButton" type="button">Clear Prompt</button>
+            </div>
+          </div>
+        </div>
 
         <div class="grid">
           <div>
@@ -388,6 +449,7 @@
               <option>Peace</option>
               <option>Closure</option>
               <option>Hope</option>
+              <option>Haunting</option>
             </select>
           </div>
 
@@ -469,10 +531,15 @@
     const loaderBar = document.getElementById("loaderBar");
     const result = document.getElementById("result");
     const errorBox = document.getElementById("errorBox");
+    const situationInput = document.getElementById("situation");
+    const voiceButton = document.getElementById("voiceButton");
+    const voiceStatus = document.getElementById("voiceStatus");
+    const clearPromptButton = document.getElementById("clearPromptButton");
     const historyList = document.getElementById("historyList");
     const historyCount = document.getElementById("historyCount");
     const clearHistoryButton = document.getElementById("clearHistoryButton");
     const storageKey = "english-poem-generator-history";
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     const loadingSteps = [
       "Reading the emotional weather...",
@@ -485,6 +552,9 @@
     let loadingTimer = null;
     let currentDraft = null;
     let lastRequest = null;
+    let voiceRecognition = null;
+    let isListening = false;
+    let voiceStopMessage = "";
 
     function escapeHtml(value) {
       return String(value)
@@ -521,9 +591,88 @@
       return getHistory().find((item) => item.id === id);
     }
 
+    function updateVoiceControls(message) {
+      voiceButton.textContent = isListening ? "Stop VTT" : "Start VTT";
+      voiceButton.classList.toggle("is-listening", isListening);
+      voiceStatus.textContent = message || (isListening ? "Listening. Speak naturally and pause when finished." : "Type your prompt, or use voice-to-text.");
+    }
+
+    function appendPromptText(text) {
+      const cleanText = text.trim();
+      if (!cleanText) return;
+
+      const currentValue = situationInput.value.trimEnd();
+      situationInput.value = currentValue ? `${currentValue} ${cleanText}` : cleanText;
+      situationInput.focus();
+    }
+
+    function setupVoiceRecognition() {
+      if (!SpeechRecognition) {
+        voiceButton.disabled = true;
+        voiceStatus.textContent = "Voice-to-text is not supported in this browser.";
+        return;
+      }
+
+      voiceRecognition = new SpeechRecognition();
+      voiceRecognition.lang = "en-US";
+      voiceRecognition.continuous = true;
+      voiceRecognition.interimResults = true;
+
+      voiceRecognition.addEventListener("result", (event) => {
+        let finalText = "";
+        let interimText = "";
+
+        for (let index = event.resultIndex; index < event.results.length; index += 1) {
+          const transcript = event.results[index][0].transcript;
+          if (event.results[index].isFinal) {
+            finalText += transcript;
+          } else {
+            interimText += transcript;
+          }
+        }
+
+        appendPromptText(finalText);
+        if (interimText.trim()) {
+          voiceStatus.textContent = `Listening: ${interimText.trim()}`;
+        }
+      });
+
+      voiceRecognition.addEventListener("end", () => {
+        isListening = false;
+        updateVoiceControls(voiceStopMessage || "Voice-to-text stopped. You can edit the prompt before generating.");
+        voiceStopMessage = "";
+      });
+
+      voiceRecognition.addEventListener("error", (event) => {
+        isListening = false;
+        voiceStopMessage = `Voice-to-text stopped: ${event.error || "microphone access was unavailable"}.`;
+        updateVoiceControls(voiceStopMessage);
+      });
+    }
+
+    function toggleVoiceRecognition() {
+      if (!voiceRecognition) return;
+
+      if (isListening) {
+        voiceStopMessage = "Voice-to-text stopped. You can edit the prompt before generating.";
+        voiceRecognition.stop();
+        return;
+      }
+
+      isListening = true;
+      voiceStopMessage = "";
+      updateVoiceControls();
+      try {
+        voiceRecognition.start();
+      } catch (error) {
+        isListening = false;
+        updateVoiceControls("Voice-to-text could not start. Please try again.");
+      }
+    }
+
     function getFormData() {
       return {
-        situation: document.getElementById("situation").value.trim(),
+        situation: situationInput.value.trim(),
         emotion: document.getElementById("emotion").value,
         style: document.getElementById("style").value,
         poemLength: document.getElementById("poemLength").value,
@@ -755,8 +904,20 @@
       loaderBar.style.width = "0%";
     }
 
+    setupVoiceRecognition();
+
     historyButton.addEventListener("click", () => switchView("history"));
     backButton.addEventListener("click", () => switchView("create"));
+    voiceButton.addEventListener("click", toggleVoiceRecognition);
+    clearPromptButton.addEventListener("click", () => {
+      if (isListening && voiceRecognition) {
+        voiceStopMessage = "Prompt cleared. Type a new prompt, or start voice-to-text.";
+        voiceRecognition.stop();
+      }
+      situationInput.value = "";
+      situationInput.focus();
+      updateVoiceControls("Prompt cleared. Type a new prompt, or start voice-to-text.");
+    });
 
     clearHistoryButton.addEventListener("click", () => {
       saveHistory([]);
