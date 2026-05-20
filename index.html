@@ -579,6 +579,7 @@
     let voiceRecognition = null;
     let isListening = false;
     let voiceStopMessage = "";
+    let voiceBasePrompt = "";
 
     function escapeHtml(value) {
       return String(value)
@@ -622,12 +623,9 @@
       voiceStatus.textContent = message || (isListening ? "Listening. Speak naturally and pause when finished." : "Type your prompt, or use voice input.");
     }
 
-    function appendPromptText(text) {
+    function setPromptVoiceText(text) {
       const cleanText = text.trim();
-      if (!cleanText) return;
-
-      const currentValue = situationInput.value.trimEnd();
-      situationInput.value = currentValue ? `${currentValue} ${cleanText}` : cleanText;
+      situationInput.value = voiceBasePrompt && cleanText ? `${voiceBasePrompt} ${cleanText}` : voiceBasePrompt || cleanText;
       situationInput.focus();
     }
 
@@ -644,21 +642,21 @@
       voiceRecognition.interimResults = true;
 
       voiceRecognition.addEventListener("result", (event) => {
-        let finalText = "";
+        let transcriptText = "";
         let interimText = "";
 
-        for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        for (let index = 0; index < event.results.length; index += 1) {
           const transcript = event.results[index][0].transcript;
           if (event.results[index].isFinal) {
-            finalText += transcript;
+            transcriptText += transcript;
           } else {
             interimText += transcript;
           }
         }
 
-        appendPromptText(finalText);
+        setPromptVoiceText(`${transcriptText} ${interimText}`);
         if (interimText.trim()) {
-          voiceStatus.textContent = `Listening: ${interimText.trim()}`;
+          voiceStatus.textContent = "Listening. Speech is being added to the prompt box.";
         }
       });
 
@@ -686,6 +684,7 @@
 
       isListening = true;
       voiceStopMessage = "";
+      voiceBasePrompt = situationInput.value.trimEnd();
       updateVoiceControls();
       try {
         voiceRecognition.start();
